@@ -104,7 +104,7 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
             }
         }
     }
-
+    // 发送下线请求，底层使用的Jersey
     @Override
     public EurekaHttpResponse<Void> cancel(String appName, String id) {
         String urlPath = "apps/" + appName + '/' + id;
@@ -127,10 +127,11 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
 
     @Override
     public EurekaHttpResponse<InstanceInfo> sendHeartBeat(String appName, String id, InstanceInfo info, InstanceStatus overriddenStatus) {
+        // 请求字符串
         String urlPath = "apps/" + appName + '/' + id;
         Response response = null;
         try {
-            WebTarget webResource = jerseyClient.target(serviceUrl)
+            WebTarget webResource = jerseyClient.target(serviceUrl)// 服务中心地址
                     .path(urlPath)
                     .queryParam("status", info.getStatus().toString())
                     .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString());
