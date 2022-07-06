@@ -142,10 +142,11 @@ public class ApplicationResource {
      */
     @POST
     @Consumes({"application/json", "application/xml"})
-    public Response addInstance(InstanceInfo info,
+    public Response addInstance(InstanceInfo info,// 供客户端进行服务注册的接口
                                 @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication) {
         logger.debug("Registering instance {} (replication={})", info.getId(), isReplication);
         // validate that the instanceinfo contains all the necessary required fields
+        // 验证 instanceinfo 是否包含所有必要的必填字段
         if (isBlank(info.getId())) {
             return Response.status(400).entity("Missing instanceId").build();
         } else if (isBlank(info.getHostName())) {
@@ -182,7 +183,7 @@ public class ApplicationResource {
                 }
             }
         }
-
+        // 注册实例信息，返回204状态码
         registry.register(info, "true".equals(isReplication));
         return Response.status(204).build();  // 204 to be backwards compatible
     }

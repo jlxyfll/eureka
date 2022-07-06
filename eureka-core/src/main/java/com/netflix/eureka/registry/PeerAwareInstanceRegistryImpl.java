@@ -410,22 +410,26 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      */
     @Override
     public void register(final InstanceInfo info, final boolean isReplication) {
-        int leaseDuration = Lease.DEFAULT_DURATION_IN_SECS;
+        int leaseDuration = Lease.DEFAULT_DURATION_IN_SECS;// 服务时效间隔，如果客户端自己配置了，取客户端配置，默认90s
         if (info.getLeaseInfo() != null && info.getLeaseInfo().getDurationInSecs() > 0) {
             leaseDuration = info.getLeaseInfo().getDurationInSecs();
         }
+        // 调用父类register注册实例
         super.register(info, leaseDuration, isReplication);
+        // 当前Server把该注册实例信息同步到其他对等的Server节点
         replicateToPeers(Action.Register, info.getAppName(), info.getId(), info, null, isReplication);
     }
 
     /*
      * (non-Javadoc)
-     *
+     * 续约调用
      * @see com.netflix.eureka.registry.InstanceRegistry#renew(java.lang.String,
      * java.lang.String, long, boolean)
      */
     public boolean renew(final String appName, final String id, final boolean isReplication) {
+        // 本地renew操作
         if (super.renew(appName, id, isReplication)) {
+            // renew操作要同步到其他peer节点去
             replicateToPeers(Action.Heartbeat, appName, id, null, null, isReplication);
             return true;
         }
@@ -630,6 +634,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     /**
      * Replicates all eureka actions to peer eureka nodes except for replication
      * traffic to this node.
+     * <p>将所有 eureka 操作复制到对等 eureka 节点，但到此节点的复制流量除外
      *
      */
     private void replicateToPeers(Action action, String appName, String id,
@@ -637,19 +642,22 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
                                   InstanceStatus newStatus /* optional */, boolean isReplication) {
         Stopwatch tracer = action.getTimer().start();
         try {
+            // 如果是复制操作，（针对当前节点，false）
             if (isReplication) {
                 numberOfReplicationsLastMin.increment();
             }
             // If it is a replication already, do not replicate again as this will create a poison replication
+            // 如果它已经是复制，请不要再次复制
             if (peerEurekaNodes == Collections.EMPTY_LIST || isReplication) {
                 return;
             }
-
+            // 遍历集群中所有节点，（出当前节点外）
             for (final PeerEurekaNode node : peerEurekaNodes.getPeerEurekaNodes()) {
                 // If the url represents this host, do not replicate to yourself.
                 if (peerEurekaNodes.isThisMyUrl(node.getServiceUrl())) {
                     continue;
                 }
+                // 复制Instance实例操作到某个node节点
                 replicateInstanceActionsToPeers(action, appName, id, info, newStatus, node);
             }
         } finally {
@@ -661,30 +669,32 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      * Replicates all instance changes to peer eureka nodes except for
      * replication traffic to this node.
      *
+     * <p>将所有实例更改复制到对等 eureka 节点，但复制到该节点的流量除外。
+     *
      */
-    private void replicateInstanceActionsToPeers(Action action, String appName,
+    private void replicateInstanceActionsToPeers(Action action, String appName,// 对等节点实例动作同步
                                                  String id, InstanceInfo info, InstanceStatus newStatus,
                                                  PeerEurekaNode node) {
         try {
             InstanceInfo infoFromRegistry;
             CurrentRequestVersion.set(Version.V2);
             switch (action) {
-                case Cancel:
+                case Cancel:// 下架
                     node.cancel(appName, id);
                     break;
-                case Heartbeat:
+                case Heartbeat:// 心跳续约
                     InstanceStatus overriddenStatus = overriddenInstanceStatusMap.get(id);
                     infoFromRegistry = getInstanceByAppAndId(appName, id, false);
                     node.heartbeat(appName, id, infoFromRegistry, overriddenStatus, false);
                     break;
-                case Register:
+                case Register:// 注册等
                     node.register(info);
                     break;
-                case StatusUpdate:
+                case StatusUpdate:// 状态更新
                     infoFromRegistry = getInstanceByAppAndId(appName, id, false);
                     node.statusUpdate(appName, id, newStatus, infoFromRegistry);
                     break;
-                case DeleteStatusOverride:
+                case DeleteStatusOverride:// 删除OverrideStatus
                     infoFromRegistry = getInstanceByAppAndId(appName, id, false);
                     node.deleteStatusOverride(appName, id, infoFromRegistry);
                     break;
