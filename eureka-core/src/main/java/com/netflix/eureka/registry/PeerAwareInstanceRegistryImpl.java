@@ -204,12 +204,14 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      * Populates the registry information from a peer eureka node. This
      * operation fails over to other nodes until the list is exhausted if the
      * communication fails.
+     * <p>从对等 eureka 节点填充注册表信息。如果通信失败，此操作将故障转移到其他节点，直到列表耗尽
      */
     @Override
     public int syncUp() {
         // Copy entire entry from neighboring DS node
-        int count = 0;
+        int count = 0;// 计数
 
+        // 如果没有连上远程Server，充实
         for (int i = 0; ((i < serverConfig.getRegistrySyncRetries()) && (count == 0)); i++) {
             if (i > 0) {
                 try {
@@ -219,13 +221,15 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
                     break;
                 }
             }
+            // 获取到其他serve的注册表信息
             Applications apps = eurekaClient.getApplications();
             for (Application app : apps.getRegisteredApplications()) {
                 for (InstanceInfo instance : app.getInstances()) {
                     try {
                         if (isRegisterable(instance)) {
+                            // 把从远程获取过来的注册信息注册到自己的注册表中，（map）
                             register(instance, instance.getLeaseInfo().getDurationInSecs(), true);
-                            count++;
+                            count++;// 计数加
                         }
                     } catch (Throwable t) {
                         logger.error("During DS init copy", t);
@@ -254,7 +258,9 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
             primeAwsReplicas(applicationInfoManager);
         }
         logger.info("Changing status to UP");
+        // 修改实例状态为up
         applicationInfoManager.setInstanceStatus(InstanceStatus.UP);
+        // 开启定时任务，默认60s的时间进行一次失效实例的剔除
         super.postInit();
     }
 

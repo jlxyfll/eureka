@@ -77,6 +77,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     private static final Logger logger = LoggerFactory.getLogger(AbstractInstanceRegistry.class);
 
     private static final String[] EMPTY_STR_ARRAY = new String[0];
+    // 注册表
+    // ConcurrentHashMap<服务名称, Map<实例id, 实例信息封装成的续约对象>>
     private final ConcurrentHashMap<String, Map<String, Lease<InstanceInfo>>> registry
             = new ConcurrentHashMap<String, Map<String, Lease<InstanceInfo>>>();
     protected Map<String, RemoteRegionRegistry> regionNameVSRemoteRegistry = new HashMap<String, RemoteRegionRegistry>();
@@ -187,21 +189,24 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
     /**
      * Registers a new instance with a given duration.
-     *
+     * <p>注册具有给定持续时间的新实例。
      * @see com.netflix.eureka.lease.LeaseManager#register(java.lang.Object, int, boolean)
      */
     public void register(InstanceInfo registrant, int leaseDuration, boolean isReplication) {
+        // 加锁，可读写锁
         read.lock();
         try {
+            // registry 注册表
             Map<String, Lease<InstanceInfo>> gMap = registry.get(registrant.getAppName());
             REGISTER.increment(isReplication);
-            if (gMap == null) {
+            if (gMap == null) {// 没有的话就创建一个服务
                 final ConcurrentHashMap<String, Lease<InstanceInfo>> gNewMap = new ConcurrentHashMap<String, Lease<InstanceInfo>>();
                 gMap = registry.putIfAbsent(registrant.getAppName(), gNewMap);
                 if (gMap == null) {
                     gMap = gNewMap;
                 }
             }
+            // 有服务的话，判断是否有实例
             Lease<InstanceInfo> existingLease = gMap.get(registrant.getId());
             // Retain the last dirty timestamp without overwriting it, if there is already a lease
             if (existingLease != null && (existingLease.getHolder() != null)) {
@@ -1208,7 +1213,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             return this.leaseInfo;
         }
     }
-
+    // 失效剔除 的定时任务
     protected void postInit() {
         renewsLastMin.start();
         if (evictionTaskRef.get() != null) {

@@ -60,10 +60,15 @@ public class DefaultEurekaServerContext implements EurekaServerContext {
         this.applicationInfoManager = applicationInfoManager;
     }
 
+    /**
+     * @PostConstruct
+     * 在当前实例构造完成后会去执行
+     */
     @PostConstruct
     @Override
     public void initialize() {
         logger.info("Initializing ...");
+        // 构建线程池
         peerEurekaNodes.start();
         try {
             registry.init(peerEurekaNodes);

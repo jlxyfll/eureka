@@ -72,6 +72,9 @@ public class PeerEurekaNodes {
         return serverConfig.getHealthStatusMinNumberOfAvailablePeers();
     }
 
+    /**
+     * 构建线程池
+     */
     public void start() {
         taskExecutor = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactory() {
@@ -84,6 +87,7 @@ public class PeerEurekaNodes {
                 }
         );
         try {
+            // 更新对等节点信息（因为集群节点可能发生变化）
             updatePeerEurekaNodes(resolvePeerUrls());
             Runnable peersUpdateTask = new Runnable() {
                 @Override
